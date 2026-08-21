@@ -1,0 +1,9 @@
+{
+  "name": "no-reply-autoresponder",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "mimetext": "^3.0.16"
+  }
+}
