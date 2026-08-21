@@ -28,7 +28,7 @@ export default {
       ``,
       `You emailed ${recipient}. This mailbox is unmonitored and cannot receive incoming replies.`,
       ``,
-      `If you need assistance, please contact us through our website.`,
+      `If you are replying to a message on Grandview Exchange, please refer to that message for contact information.`,
       ``,
       `Thank you!`
     ].join("\r\n");
