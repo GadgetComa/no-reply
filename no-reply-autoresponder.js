@@ -1,14 +1,12 @@
 import { EmailMessage } from "cloudflare:email";
-import createMimeMessage from "mimetext";
 
 export default {
   async email(message, env, ctx) {
-    // 1. Extract details from the incoming message
     const sender = message.from;
     const recipient = message.to;
     const subject = message.headers.get("subject") || "No Subject";
 
-    // 2. Prevent auto-reply loops for automated system messages
+    // 1. Prevent infinite auto-reply loops for system addresses
     if (
       sender.includes("no-reply") ||
       sender.includes("noreply") ||
@@ -19,23 +17,24 @@ export default {
       return;
     }
 
-    // 3. Construct the MIME response message
-    const msg = createMimeMessage();
-    msg.setSender({ name: "Automated System", addr: recipient });
-    msg.setRecipient(sender);
-    msg.setSubject(`Auto-Response: Re: ${subject}`);
-    msg.setMessage(
-      "text/plain",
-      `Hello,\n\nYou emailed ${recipient}. This mailbox is unmonitored and cannot receive incoming replies.\n\nIf you are replying to a Grandview Exchange message, check that message for contact information and instructions.\n\nThank you!`
-    );
+    // 2. Construct raw RFC 2822 MIME text natively
+    const rawMime = [
+      `From: ${recipient}`,
+      `To: ${sender}`,
+      `Subject: Auto-Response: Re: ${subject}`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      ``,
+      `Hello,`,
+      ``,
+      `You emailed ${recipient}. This mailbox is unmonitored and cannot receive incoming replies.`,
+      ``,
+      `If you need assistance, please contact us through our website.`,
+      ``,
+      `Thank you!`
+    ].join("\r\n");
 
-    // 4. Send the reply using Cloudflare's reply API
-    const replyMessage = new EmailMessage(
-      recipient,
-      sender,
-      msg.asRaw()
-    );
-
+    // 3. Send the reply back to the sender
+    const replyMessage = new EmailMessage(recipient, sender, rawMime);
     await message.reply(replyMessage);
   },
 };
