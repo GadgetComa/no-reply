@@ -2,39 +2,53 @@ import { EmailMessage } from "cloudflare:email";
 
 export default {
   async email(message, env, ctx) {
-    const sender = message.from;
-    const recipient = message.to;
-    const subject = message.headers.get("subject") || "No Subject";
+    try {
+      const sender = message.from;
+      const recipient = message.to;
+      const subject = message.headers.get("subject") || "No Subject";
 
-    // 1. Prevent infinite auto-reply loops for system addresses
-    if (
-      sender.includes("no-reply") ||
-      sender.includes("noreply") ||
-      sender.includes("mailer-daemon") ||
-      sender.includes("postmaster")
-    ) {
-      console.log(`Skipping reply to system address: ${sender}`);
-      return;
+      // 1. Skip missing sender or system loop addresses
+      if (!sender) return;
+
+      const lowerSender = sender.toLowerCase();
+      if (
+        lowerSender.includes("no-reply") ||
+        lowerSender.includes("noreply") ||
+        lowerSender.includes("mailer-daemon") ||
+        lowerSender.includes("postmaster")
+      ) {
+        console.log(`Skipping auto-reply to system address: ${sender}`);
+        return;
+      }
+
+      // 2. Generate required Message-ID and RFC-compliant domain details
+      const domain = recipient.split("@")[1] || "grandviewexchange.com";
+      const messageId = `<auto-reply-${Date.now()}-${Math.random().toString(36).substring(2, 9)}@${domain}>`;
+
+      // 3. Construct raw MIME message with required Message-ID header
+      const rawMime = [
+        `From: ${recipient}`,
+        `To: ${sender}`,
+        `Subject: Auto-Response: Re: ${subject}`,
+        `Message-ID: ${messageId}`,
+        `Auto-Submitted: auto-replied`,
+        `Content-Type: text/plain; charset=UTF-8`,
+        ``,
+        `Hello,`,
+        ``,
+        `Your email to ${recipient} was not received. This mailbox is unmonitored and cannot receive incoming replies.`,
+        ``,
+        `If you are replying to a Grandview Exchange message, please refer to the original message to find correct contact information.`,
+        ``,
+        `Thank you!`
+      ].join("\r\n");
+
+      // 4. Send response
+      const replyMessage = new EmailMessage(recipient, sender, rawMime);
+      await message.reply(replyMessage);
+      console.log(`Successfully sent auto-reply to ${sender}`);
+    } catch (err) {
+      console.error(`Error processing incoming email: ${err.message}`, err);
     }
-
-    // 2. Construct raw RFC 2822 MIME text natively
-    const rawMime = [
-      `From: ${recipient}`,
-      `To: ${sender}`,
-      `Subject: Auto-Response: Re: ${subject}`,
-      `Content-Type: text/plain; charset=UTF-8`,
-      ``,
-      `Hello,`,
-      ``,
-      `You emailed ${recipient}. This mailbox is unmonitored and cannot receive incoming replies.`,
-      ``,
-      `If you need assistance, please contact us through our website.`,
-      ``,
-      `Thank you!`
-    ].join("\r\n");
-
-    // 3. Send the reply back to the sender
-    const replyMessage = new EmailMessage(recipient, sender, rawMime);
-    await message.reply(replyMessage);
   },
 };
